@@ -4,10 +4,8 @@ import PIL
 import PIL.Image
 import PIL.ImageFont
 import os
-import numpy
-import pandas as pd
-import tensorflow as tf
-from PIL import ImageOps
+
+
 import PIL.ImageDraw
 from tkinter import filedialog
 from tkinter import *
@@ -16,7 +14,7 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-with open("pictureset.pickle", "rb") as filename:
+with open("./model/pictureset.pickle", "rb") as filename:
     people = pickle.load(filename)
 
 print("Select a file")

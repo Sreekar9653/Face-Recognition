@@ -3,3 +3,8 @@ face-recognition
 pandas
 opencv-python
 tensorflow
+streamlit
+keras
+opencv-python-headless
+streamlit-webrtc
+pillow

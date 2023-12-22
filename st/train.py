@@ -1,4 +1,4 @@
-import cv2
+import streamlit as st
 import pickle
 import face_recognition
 import PIL
@@ -12,15 +12,14 @@ font = PIL.ImageFont.truetype("timesbd.ttf", 20)
 with open("./model/pictureset.pickle", "rb") as filename:
     people = pickle.load(filename)
 
-# Increase the frame rate by setting the CAP_PROP_FPS property
-cap = cv2.VideoCapture(0)
-cap.set(cv2.CAP_PROP_FPS, 60)  # Adjust the value according to your needs
+st.title("Face Recognition Streamlit App")
 
-while cap.isOpened():
-    ret, frame = cap.read()
+counter = 0  # Counter for generating unique keys
 
-    if not ret:
-        break
+camera_input = st.camera_input()
+
+while st.checkbox("Enable Face Recognition", key=f"checkbox_{counter}", value=True):
+    frame = camera_input.read()
 
     small_frame = cv2.resize(frame, (0, 0), fx=1 / 4, fy=1 / 4)
     rgb_small_frame = small_frame[:, :, ::-1]
@@ -43,13 +42,11 @@ while cap.isOpened():
         draw.text((left, bottom), name, font=font)
 
     open_cv_image = np.array(face_img)
-    cv2.imshow("frame", open_cv_image.copy())
+    st.image(
+        open_cv_image, channels="BGR", use_column_width=True, caption="Camera Feed"
+    )
 
     # Introduce a delay to control the frame rate
     time.sleep(0.03)  # Adjust the value according to your needs
 
-    if cv2.waitKey(1) & 0xFF == ord("q"):
-        break
-
-cap.release()
-cv2.destroyAllWindows()
+    counter += 1  # Increment the counter for the next iteration
