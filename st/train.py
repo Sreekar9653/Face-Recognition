@@ -1,52 +1,99 @@
-import streamlit as st
 import pickle
 import face_recognition
-import PIL
-import PIL.ImageFont
-import PIL.ImageDraw
-import numpy as np
-import time
+import streamlit as st
+from PIL import Image, ImageDraw, ImageFont
+import os
 
-font = PIL.ImageFont.truetype("timesbd.ttf", 20)
-
-with open("./model/pictureset.pickle", "rb") as filename:
+# Load known faces from the pickle file
+with open("../model/pictureset.pickle", "rb") as filename:
     people = pickle.load(filename)
 
-st.title("Face Recognition Streamlit App")
+# Streamlit UI
+st.title("Face Recognition App")
 
-counter = 0  # Counter for generating unique keys
+# Upload image through Streamlit file uploader
+uploaded_file = st.file_uploader(
+    "Choose a photo to recognize faces", type=["jpg", "jpeg"]
+)
 
-camera_input = st.camera_input()
+if uploaded_file is not None:
+    # Load the image using face_recognition
+    pic = face_recognition.load_image_file(uploaded_file)
+    pic_coords = face_recognition.face_locations(pic, model="hog")
+    pic_enc = face_recognition.face_encodings(pic, known_face_locations=pic_coords)
+    face_pic = Image.fromarray(pic)
 
-while st.checkbox("Enable Face Recognition", key=f"checkbox_{counter}", value=True):
-    frame = camera_input.read()
+    unknown_faces_location = []
+    unknown_faces_enc = []
 
-    small_frame = cv2.resize(frame, (0, 0), fx=1 / 4, fy=1 / 4)
-    rgb_small_frame = small_frame[:, :, ::-1]
-    img_loc = face_recognition.face_locations(rgb_small_frame, model="hog")
-    img_enc = face_recognition.face_encodings(
-        rgb_small_frame, known_face_locations=img_loc
-    )
+    for i in range(0, len(pic_enc)):
+        faces = 0
+        persname = "unknown"
+        for key, value in people.items():
+            result = face_recognition.compare_faces(value, pic_enc[i], tolerance=0.5)
+            faces_found = result.count(True)
+            if faces_found > faces:
+                faces = faces_found
+                persname = key
 
-    face_img = PIL.Image.fromarray(frame)
+        top, right, bottom, left = pic_coords[i]
+        draw = ImageDraw.Draw(face_pic)
+        font = ImageFont.load_default()
 
-    for i in range(0, len(img_enc)):
-        name = "unknown"
-        for k, v in people.items():
-            result = face_recognition.compare_faces(v, img_enc[i], tolerance=0.5)
-            top, right, bottom, left = np.multiply(img_loc[i], 4)
-            draw = PIL.ImageDraw.Draw(face_img)
-            draw.rectangle([left, top, right, bottom], outline="red", width=2)
-            if True in result:
-                name = k
-        draw.text((left, bottom), name, font=font)
+        text_bbox = draw.textbbox((left, bottom), persname, font=font)
+        text_width = text_bbox[2] - text_bbox[0]
+        text_height = text_bbox[3] - text_bbox[1]
 
-    open_cv_image = np.array(face_img)
-    st.image(
-        open_cv_image, channels="BGR", use_column_width=True, caption="Camera Feed"
-    )
+        draw.rectangle(
+            (left, bottom, left + text_width, bottom + text_height * 1.2), fill="black"
+        )
+        draw.text((left, bottom), persname, font=font)
 
-    # Introduce a delay to control the frame rate
-    time.sleep(0.03)  # Adjust the value according to your needs
+        if faces == 0:
+            unknown_faces_location.append(pic_coords[i])
+            unknown_faces_enc.append(pic_enc[i])
 
-    counter += 1  # Increment the counter for the next iteration
+    # Display the image with recognized faces
+    st.image(face_pic, caption="Recognized Faces", use_column_width=True)
+
+    # Learning Phase
+    if len(unknown_faces_enc) > 0:
+        st.write(
+            f"There is(are) {len(unknown_faces_enc)} unknown person(s) in the photo."
+        )
+        if st.button("Enter their information"):
+            st.write(
+                "In each stage, enter an empty string if you do not know the person"
+            )
+            for i in range(0, len(unknown_faces_location)):
+                top, right, bottom, left = unknown_faces_location[i]
+                roi = face_pic.copy().crop([left, top, right, bottom])
+
+                # Display the region of interest (ROI)
+                st.image(roi, caption="Region of Interest", use_column_width=True)
+
+                # Get user input for the person's name
+                name = st.text_input("Who is this person?")
+
+                if name in people:
+                    tmp = people[name]
+                    tmp.append(unknown_faces_enc[i])
+                    st.write(
+                        "The person was in the database. New photo was added to their profile."
+                    )
+                elif name:
+                    people[name] = [unknown_faces_enc[i]]
+                    try:
+                        os.mkdir("People/" + name)
+                    except:
+                        pass
+                    roi.save(
+                        os.getcwd() + "/People/" + name + "/" + name + ".jpeg", "JPEG"
+                    )
+                    st.write("New person added")
+                else:
+                    st.write("Person skipped")
+
+            # Save the updated database
+            with open("../model/pictureset.pickle", "wb") as filename:
+                pickle.dump(people, filename)
