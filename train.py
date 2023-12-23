@@ -4,20 +4,20 @@ import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 import os
 
-# Load known faces from the pickle file
-with open("../model/pictureset.pickle", "rb") as filename:
+# Load the face recognition model
+with open("./model/pictureset.pickle", "rb") as filename:
     people = pickle.load(filename)
 
 # Streamlit UI
 st.title("Face Recognition App")
 
-# Upload image through Streamlit file uploader
+# Upload image through Streamlit
 uploaded_file = st.file_uploader(
     "Choose a photo to recognize faces", type=["jpg", "jpeg"]
 )
 
 if uploaded_file is not None:
-    # Load the image using face_recognition
+    # Perform face recognition on the uploaded image
     pic = face_recognition.load_image_file(uploaded_file)
     pic_coords = face_recognition.face_locations(pic, model="hog")
     pic_enc = face_recognition.face_encodings(pic, known_face_locations=pic_coords)
@@ -59,22 +59,18 @@ if uploaded_file is not None:
     # Learning Phase
     if len(unknown_faces_enc) > 0:
         st.write(
-            f"There is(are) {len(unknown_faces_enc)} unknown person(s) in the photo."
+            f"There is(are) {len(unknown_faces_enc)} unknown person(s) in the photo. Would you like to enter their information?"
         )
-        if st.button("Enter their information"):
+        user_input = st.text_input("Enter 'Y' or 'N'")
+        if user_input.lower() in ["y", "yes"]:
             st.write(
                 "In each stage, enter an empty string if you do not know the person"
             )
             for i in range(0, len(unknown_faces_location)):
                 top, right, bottom, left = unknown_faces_location[i]
                 roi = face_pic.copy().crop([left, top, right, bottom])
-
-                # Display the region of interest (ROI)
-                st.image(roi, caption="Region of Interest", use_column_width=True)
-
-                # Get user input for the person's name
+                st.image(roi, caption="Unknown Face", use_column_width=True)
                 name = st.text_input("Who is this person?")
-
                 if name in people:
                     tmp = people[name]
                     tmp.append(unknown_faces_enc[i])
@@ -94,8 +90,8 @@ if uploaded_file is not None:
                 else:
                     st.write("Person skipped")
 
-            # Save the updated database
+            # Save the updated database with a button
             if st.button("Save Information"):
-                with open("../model/pictureset.pickle", "wb") as filename:
+                with open("./model/pictureset.pickle", "wb") as filename:
                     pickle.dump(people, filename)
-                st.write("Information saved successfully!")
+                    st.write("Database saved successfully!")
