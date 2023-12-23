@@ -9,7 +9,7 @@ import time
 
 font = PIL.ImageFont.truetype("timesbd.ttf", 20)
 
-with open("pictureset.pickle", "rb") as filename:
+with open("./model/pictureset.pickle", "rb") as filename:
     people = pickle.load(filename)
 
 # Increase the frame rate by setting the CAP_PROP_FPS property
