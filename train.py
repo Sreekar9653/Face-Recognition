@@ -61,21 +61,33 @@ if uploaded_file is not None:
         st.write(
             f"There is(are) {len(unknown_faces_enc)} unknown person(s) in the photo. Would you like to enter their information?"
         )
-        user_input = st.text_input("Enter 'Y' or 'N'")
+        user_input = st.text_input("Enter 'Yes'|'Y' or 'No'|'N'")
         if user_input.lower() in ["y", "yes"]:
             st.write(
                 "In each stage, enter an empty string if you do not know the person"
             )
+
+            # Create a grid layout with two columns
+            col_faces, col_inputs = st.columns(2)
+
             for i in range(0, len(unknown_faces_location)):
                 top, right, bottom, left = unknown_faces_location[i]
                 roi = face_pic.copy().crop([left, top, right, bottom])
-                st.image(roi, caption="Unknown Face", use_column_width=True)
-                name = st.text_input("Who is this person?")
+
+                # Display face in the first column
+                col_faces.image(
+                    roi, caption=f"Face {i + 1}", width=250, use_column_width=True
+                )
+
+                # Input name in the second column
+                name = col_inputs.text_input(
+                    f"Who is this person? Face ({i + 1})", key=f"name_{i}"
+                )
                 if name in people:
                     tmp = people[name]
                     tmp.append(unknown_faces_enc[i])
                     st.write(
-                        "The person was in the database. New photo was added to their profile."
+                        "The person was in the database. A new photo was added to their profile."
                     )
                 elif name:
                     people[name] = [unknown_faces_enc[i]]
