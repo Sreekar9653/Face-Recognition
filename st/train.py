@@ -95,5 +95,7 @@ if uploaded_file is not None:
                     st.write("Person skipped")
 
             # Save the updated database
-            with open("../model/pictureset.pickle", "wb") as filename:
-                pickle.dump(people, filename)
+            if st.button("Save Information"):
+                with open("../model/pictureset.pickle", "wb") as filename:
+                    pickle.dump(people, filename)
+                st.write("Information saved successfully!")
