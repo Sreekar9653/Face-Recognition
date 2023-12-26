@@ -107,3 +107,5 @@ if uploaded_file is not None:
                 with open("./model/pictureset.pickle", "wb") as filename:
                     pickle.dump(people, filename)
                     st.write("Database saved successfully!")
+
+# end
