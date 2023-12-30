@@ -11,17 +11,21 @@
 
     <div>
       <h2>Video Stream</h2>
-      <img
-        id="video_feed"
-        src="{{ url_for('video_feed') }}"
-        alt="Video Feed"
-        style="width: 50%"
-      />
+      <div id="video_stream">
+        <!-- VIDEO FRAME -->
+      </div>
     </div>
 
     <div>
       <h2>Attendance Information</h2>
       <div id="attendance_info"></div>
+    </div>
+
+    <div>
+      <h2>Attendance Control</h2>
+      <button onclick="startAttendance()">Start Attendance</button>
+      <button onclick="stopAttendance()">Stop Attendance</button>
+      <button onclick="saveAttendance()">Save Attendance</button>
     </div>
 
     <script>
@@ -38,7 +42,7 @@
             table.style.width = "100%";
 
             const headerRow = table.insertRow(0);
-            const headers = ["Name", "Timestamp"];
+            const headers = ["Name", "Timestamp", "Present"];
             headers.forEach((headerText) => {
               const header = document.createElement("th");
               header.textContent = headerText;
@@ -48,17 +52,34 @@
               headerRow.appendChild(header);
             });
 
-            data.forEach((attendee) => {
-              const row = table.insertRow(-1);
-              const cell1 = row.insertCell(0);
-              cell1.textContent = attendee.name;
-              cell1.style.border = "1px solid #dddddd";
-              cell1.style.padding = "8px";
+            const uniqueNames = new Set();
 
-              const cell2 = row.insertCell(1);
-              cell2.textContent = attendee.timestamp;
-              cell2.style.border = "1px solid #dddddd";
-              cell2.style.padding = "8px";
+            data.forEach((attendee) => {
+              // Check if the name is not already in the set
+              if (!uniqueNames.has(attendee.name)) {
+                const row = table.insertRow(-1);
+
+                // Cell 1: Name
+                const cell1 = row.insertCell(0);
+                cell1.textContent = attendee.name;
+                cell1.style.border = "1px solid #dddddd";
+                cell1.style.padding = "8px";
+
+                // Cell 2: Timestamp
+                const cell2 = row.insertCell(1);
+                cell2.textContent = attendee.timestamp;
+                cell2.style.border = "1px solid #dddddd";
+                cell2.style.padding = "8px";
+
+                // Cell 3: Present
+                const cell3 = row.insertCell(2);
+                cell3.textContent = attendee.present;
+                cell3.style.border = "1px solid #dddddd";
+                cell3.style.padding = "8px";
+
+                // Add the name to the set to track duplicates
+                uniqueNames.add(attendee.name);
+              }
             });
 
             attendanceInfoDiv.appendChild(table);
@@ -69,7 +90,45 @@
       }
 
       // Update attendance information every 5 seconds
-      setInterval(updateAttendanceInfo, 5000);
+      setInterval(updateAttendanceInfo, 10000);
+
+      // Function to start attendance
+      function startAttendance() {
+        // Create an img element
+        const imgElement = document.createElement("img");
+
+        // Set attributes for the img element
+        imgElement.id = "video_feed";
+        imgElement.src = "{{ url_for('video_feed') }}";
+        imgElement.alt = "Video Feed";
+        imgElement.style.width = "100%";
+        const videoContainer = document.getElementById("video_stream"); //
+        videoContainer.appendChild(imgElement);
+
+        console.log("Attendance started!");
+      }
+
+      // Function to stop attendance
+      function stopAttendance() {
+        const videoFeed = document.getElementById("video_feed");
+        videoFeed.remove();
+        console.log("Attendance stopped!");
+      }
+
+      // Function to save attendance
+      function saveAttendance() {
+        // Call the Flask route to save attendance
+        fetch("/save_attendance", {
+          method: "POST",
+        })
+          .then((response) => response.text())
+          .then((message) => {
+            console.log(message);
+          })
+          .catch((error) => {
+            console.error("Error saving attendance:", error);
+          });
+      }
     </script>
   </body>
 </html>

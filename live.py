@@ -1,4 +1,4 @@
-from flask import Flask, render_template, Response
+from flask import Flask, render_template, Response, request
 import cv2
 import pickle
 import face_recognition
@@ -15,6 +15,12 @@ font = PIL.ImageFont.truetype("timesbd.ttf", 20)
 
 attendance_list = list()
 json_file_path = f"./attendances/attendance_{time.strftime('%Y-%m-%d')}.json"
+
+
+def save_attendance_to_json():
+    global attendance_list
+    with open(json_file_path, "w") as json_file:
+        json.dump(attendance_list, json_file, indent=2)
 
 
 def process_frame(frame):
@@ -49,8 +55,6 @@ def process_frame(frame):
                     for existing_attendee in attendance_list
                 ):
                     attendance_list.append(attendee)
-                    with open(json_file_path, "w") as json_file:
-                        json.dump(attendance_list, json_file, indent=2)
 
     return np.array(face_img)
 
@@ -79,6 +83,11 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/attendance_info")
+def get_attendance_info():
+    return json.dumps(attendance_list)
+
+
 @app.route("/video_feed")
 def video_feed():
     return Response(
@@ -86,9 +95,11 @@ def video_feed():
     )
 
 
-@app.route("/attendance_info")
-def get_attendance_info():
-    return json.dumps(attendance_list)
+@app.route("/save_attendance", methods=["POST"])
+def save_attendance():
+    # Call the function to save attendance to JSON file
+    save_attendance_to_json()
+    return "Attendance saved successfully!"
 
 
 if __name__ == "__main__":
