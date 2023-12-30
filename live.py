@@ -1,4 +1,4 @@
-import streamlit as st
+from flask import Flask, render_template, Response
 import cv2
 import pickle
 import face_recognition
@@ -9,23 +9,19 @@ import numpy as np
 import time
 import json
 
+app = Flask(__name__)
+
 font = PIL.ImageFont.truetype("timesbd.ttf", 20)
 
-with open("./model/pictureset.pickle", "rb") as filename:
-    people = pickle.load(filename)
-
-st.title("Face Recognition Streamlit App")
-
-# List to store attendance information as dictionaries
 attendance_list = list()
-
-# File to store attendance information in JSON format
-json_file_path = "./attendance.json"
+json_file_path = f"./attendances/attendance_{time.strftime('%Y-%m-%d')}.json"
 
 
-# Function to process each frame
 def process_frame(frame):
     global attendance_list
+
+    with open("./model/pictureset.pickle", "rb") as filename:
+        people = pickle.load(filename)
 
     small_frame = cv2.resize(frame, (0, 0), fx=1 / 4, fy=1 / 4)
     rgb_small_frame = small_frame[:, :, ::-1]
@@ -37,7 +33,7 @@ def process_frame(frame):
     face_img = PIL.Image.fromarray(frame)
 
     for i in range(0, len(img_enc)):
-        name = "unknown"
+        name = "Unknown"
         for k, v in people.items():
             result = face_recognition.compare_faces(v, img_enc[i], tolerance=0.5)
             top, right, bottom, left = np.multiply(img_loc[i], 4)
@@ -46,7 +42,6 @@ def process_frame(frame):
             if True in result:
                 name = k
                 draw.text((left, bottom), name, font=font)
-                # Add attendance record to the list only if the name is not present
                 timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
                 attendee = {"name": name, "timestamp": timestamp, "present": True}
                 if not any(
@@ -54,39 +49,47 @@ def process_frame(frame):
                     for existing_attendee in attendance_list
                 ):
                     attendance_list.append(attendee)
-                    # Save the updated attendance list to the JSON file
                     with open(json_file_path, "w") as json_file:
                         json.dump(attendance_list, json_file, indent=2)
 
-                # st.text(attendance_list)
-                # st.text(f"Count {len(attendance_list)}")
     return np.array(face_img)
 
 
-# Main Streamlit app
-cap = cv2.VideoCapture(0)
+def generate_frames():
+    cap = cv2.VideoCapture(0)
 
-if not cap.isOpened():
-    st.error("Unable to open the camera. Please check your camera connection.")
+    if not cap.isOpened():
+        return
 
-start_stop_switch = st.checkbox("Start/Stop Attendance Collection")
-stframe = st.empty()
+    while True:
+        ret, frame = cap.read()
 
-while start_stop_switch:
-    ret, frame = cap.read()
+        if not ret:
+            break
 
-    if not ret:
-        break
+        processed_frame = process_frame(frame)
+        _, buffer = cv2.imencode(".jpg", processed_frame)
+        frame = buffer.tobytes()
 
-    processed_frame = process_frame(frame)
+        yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n")
 
-    stframe.image(processed_frame, channels="BGR", use_column_width=True)
 
-    # Introduce a delay to control the frame rate
-    time.sleep(0.03)  # Adjust the value according to your needs
+@app.route("/")
+def index():
+    return render_template("index.html")
 
-# Print the attendance list when attendance collection stops
-st.write("Attendance Information:")
 
-cap.release()
-cv2.destroyAllWindows()
+@app.route("/video_feed")
+def video_feed():
+    return Response(
+        generate_frames(), mimetype="multipart/x-mixed-replace; boundary=frame"
+    )
+
+
+@app.route("/attendance_info")
+def get_attendance_info():
+    return json.dumps(attendance_list)
+
+
+if __name__ == "__main__":
+    app.run(debug=True)

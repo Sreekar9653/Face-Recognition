@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Face Recognition App</title>
+  </head>
+
+  <body>
+    <h1>Face Recognition App</h1>
+
+    <div>
+      <h2>Video Stream</h2>
+      <img
+        id="video_feed"
+        src="{{ url_for('video_feed') }}"
+        alt="Video Feed"
+        style="width: 50%"
+      />
+    </div>
+
+    <div>
+      <h2>Attendance Information</h2>
+      <div id="attendance_info"></div>
+    </div>
+
+    <script>
+      // Update attendance information from Flask route
+      function updateAttendanceInfo() {
+        fetch("/attendance_info")
+          .then((response) => response.json())
+          .then((data) => {
+            const attendanceInfoDiv =
+              document.getElementById("attendance_info");
+            attendanceInfoDiv.innerHTML = "<h3>Attendance Information:</h3>";
+            const table = document.createElement("table");
+            table.style.borderCollapse = "collapse";
+            table.style.width = "100%";
+
+            const headerRow = table.insertRow(0);
+            const headers = ["Name", "Timestamp"];
+            headers.forEach((headerText) => {
+              const header = document.createElement("th");
+              header.textContent = headerText;
+              header.style.border = "1px solid #dddddd";
+              header.style.padding = "8px";
+              header.style.textAlign = "left";
+              headerRow.appendChild(header);
+            });
+
+            data.forEach((attendee) => {
+              const row = table.insertRow(-1);
+              const cell1 = row.insertCell(0);
+              cell1.textContent = attendee.name;
+              cell1.style.border = "1px solid #dddddd";
+              cell1.style.padding = "8px";
+
+              const cell2 = row.insertCell(1);
+              cell2.textContent = attendee.timestamp;
+              cell2.style.border = "1px solid #dddddd";
+              cell2.style.padding = "8px";
+            });
+
+            attendanceInfoDiv.appendChild(table);
+          })
+          .catch((error) =>
+            console.error("Error fetching attendance information:", error)
+          );
+      }
+
+      // Update attendance information every 5 seconds
+      setInterval(updateAttendanceInfo, 5000);
+    </script>
+  </body>
+</html>
