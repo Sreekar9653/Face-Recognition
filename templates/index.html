@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sasta Face Recogintion</title>
+    <style>
+      .container {
+        display: grid;
+        grid-template-areas: "div div";
+        grid-template-columns: 1fr 1fr;
+        padding: 0.4rem;
+        gap: 2rem;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Sasta Face Recogintion</h1>
+
+    <div class="container">
+      <div>
+        <h2>Video Stream</h2>
+        <div id="video_stream">
+          <!-- VIDEO FRAME -->
+          <img
+            id="video_feed"
+            src="/video_feed"
+            alt="Video Feed"
+            style="width: 100%; height: 100%"
+          />
+        </div>
+      </div>
+
+      <div>
+        <div>
+          <h2>Attendance Information</h2>
+          <div id="attendance_info"></div>
+        </div>
+
+        <div>
+          <h2>Attendance Control</h2>
+          <button onclick="startAttendance()">Start Attendance</button>
+          <button onclick="stopVideoFeed()">Stop Attendance</button>
+          <button onclick="saveAttendance()">Save Attendance</button>
+          <button onclick="clearAttendance()">Clear Attendance</button>
+        </div>
+      </div>
+    </div>
+
+    <script
+      type="text/javascript"
+      src="{{ url_for('static', filename='./public/js/script.js') }}"
+    ></script>
+  </body>
+</html>
