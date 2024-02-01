@@ -1,81 +1,57 @@
 from flask import Flask, render_template, Response, request
 import cv2
-import pickle
-import face_recognition
-import PIL
-import PIL.ImageFont
-import PIL.ImageDraw
-import numpy as np
 import time
 import json
 
+from modules.face_reco import process_frame
+
 app = Flask(__name__)
 
-font = PIL.ImageFont.truetype("timesbd.ttf", 20)
 
 attendance_list = list()
-json_file_path = f"./attendances/attendance_{time.strftime('%Y-%m-%d')}.json"
+
+__JSON_FILE_PATH__ = f"./attendances/attendance_{time.strftime('%Y-%m-%d')}.json"
+
+# ?global variable to control video feed
+video_feed_active = True
+process_framedata = False
 
 
 def save_attendance_to_json():
     global attendance_list
-    with open(json_file_path, "w") as json_file:
+    with open(__JSON_FILE_PATH__, "w") as json_file:
         json.dump(attendance_list, json_file, indent=2)
 
 
-def process_frame(frame):
+def generate_frames():
     global attendance_list
 
-    with open("./model/pictureset.pickle", "rb") as filename:
-        people = pickle.load(filename)
-
-    small_frame = cv2.resize(frame, (0, 0), fx=1 / 4, fy=1 / 4)
-    rgb_small_frame = small_frame[:, :, ::-1]
-    img_loc = face_recognition.face_locations(rgb_small_frame, model="hog")
-    img_enc = face_recognition.face_encodings(
-        rgb_small_frame, known_face_locations=img_loc
-    )
-
-    face_img = PIL.Image.fromarray(frame)
-
-    for i in range(0, len(img_enc)):
-        name = "Unknown"
-        for k, v in people.items():
-            result = face_recognition.compare_faces(v, img_enc[i], tolerance=0.5)
-            top, right, bottom, left = np.multiply(img_loc[i], 4)
-            draw = PIL.ImageDraw.Draw(face_img)
-            draw.rectangle([left, top, right, bottom], outline="red", width=2)
-            if True in result:
-                name = k
-                draw.text((left, bottom), name, font=font)
-                timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-                attendee = {"name": name, "timestamp": timestamp, "present": True}
-                if not any(
-                    existing_attendee["name"] == attendee["name"]
-                    for existing_attendee in attendance_list
-                ):
-                    attendance_list.append(attendee)
-
-    return np.array(face_img)
-
-
-def generate_frames():
     cap = cv2.VideoCapture(0)
 
     if not cap.isOpened():
         return
 
-    while True:
+    global video_feed_active, process_framedata
+
+    while video_feed_active:
         ret, frame = cap.read()
 
         if not ret:
             break
 
-        processed_frame = process_frame(frame)
-        _, buffer = cv2.imencode(".jpg", processed_frame)
-        frame = buffer.tobytes()
+        if process_framedata:
+            processed_frame, attendance_list = process_frame(frame, attendance_list)
+            _, buffer = cv2.imencode(".jpg", processed_frame)
+        else:
+            _, buffer = cv2.imencode(".jpg", frame)
 
-        yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n")
+        frame_bytes = buffer.tobytes()
+        yield (
+            b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
+        )
+
+    # Release the camera when the video feed is no longer active
+    cap.release()
 
 
 @app.route("/")
@@ -100,6 +76,46 @@ def save_attendance():
     # Call the function to save attendance to JSON file
     save_attendance_to_json()
     return "Attendance saved successfully!"
+
+
+@app.route("/startAttendance", methods=["POST"])
+def start_attendance():
+    global process_framedata
+    process_framedata = True
+    return "Attendance Started successfully!"
+
+
+@app.route("/remove_attendee", methods=["POST"])
+def remove_attendee():
+    global attendance_list
+
+    # Get the name to be removed from the request JSON data
+    data = request.get_json()
+    name_to_remove = data.get("name", "")
+
+    print(f"Remove {name_to_remove}")
+    # Remove the attendee with the specified name
+    attendance_list = [
+        attendee for attendee in attendance_list if attendee["name"] != name_to_remove
+    ]
+
+    return "Attendee removed successfully!"
+
+
+@app.route("/clearAttendance", methods=["POST"])
+def clear_attendance():
+    global attendance_list
+    attendance_list.clear()
+    return "Attendance cleared successfully!"
+
+
+# Add a route to stop the video feed
+@app.route("/stopVideoFeed", methods=["POST"])
+def stop_video_feed():
+    global process_framedata
+    process_framedata = False
+    print("Frame Else Part")
+    return "Attendence Stopped"
 
 
 if __name__ == "__main__":
